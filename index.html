@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stick Prototype</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #ffffff;
+  }
+  canvas {
+    display: block;
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener("resize", resize);
+
+// --- Player ---
+let player = {
+  x: 0,
+  y: 0,
+  vx: 0,
+  vy: 0
+};
+
+// --- Joystick ---
+let joystick = {
+  active: false,
+  baseX: 120,
+  baseY: window.innerHeight - 120,
+  radius: 60,
+  knobX: 120,
+  knobY: window.innerHeight - 120,
+  dx: 0,
+  dy: 0
+};
+
+function updateJoystickPosition() {
+  joystick.baseY = window.innerHeight - 120;
+  joystick.knobY = joystick.baseY;
+}
+window.addEventListener("resize", updateJoystickPosition);
+
+// --- Input ---
+function getTouchPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: e.touches ? e.touches[0].clientX - rect.left : e.clientX,
+    y: e.touches ? e.touches[0].clientY - rect.top : e.clientY
+  };
+}
+
+function startInput(e) {
+  const pos = getTouchPos(e);
+  const dist = Math.hypot(pos.x - joystick.baseX, pos.y - joystick.baseY);
+  if (dist < joystick.radius) {
+    joystick.active = true;
+  }
+}
+
+function moveInput(e) {
+  if (!joystick.active) return;
+
+  const pos = getTouchPos(e);
+  let dx = pos.x - joystick.baseX;
+  let dy = pos.y - joystick.baseY;
+  const dist = Math.hypot(dx, dy);
+
+  if (dist > joystick.radius) {
+    dx = dx / dist * joystick.radius;
+    dy = dy / dist * joystick.radius;
+  }
+
+  joystick.knobX = joystick.baseX + dx;
+  joystick.knobY = joystick.baseY + dy;
+  joystick.dx = dx / joystick.radius;
+  joystick.dy = dy / joystick.radius;
+}
+
+function endInput() {
+  joystick.active = false;
+  joystick.knobX = joystick.baseX;
+  joystick.knobY = joystick.baseY;
+  joystick.dx = 0;
+  joystick.dy = 0;
+}
+
+canvas.addEventListener("mousedown", startInput);
+canvas.addEventListener("mousemove", moveInput);
+canvas.addEventListener("mouseup", endInput);
+
+canvas.addEventListener("touchstart", startInput);
+canvas.addEventListener("touchmove", moveInput);
+canvas.addEventListener("touchend", endInput);
+
+// --- Game Loop ---
+function update() {
+  const speed = 0.6;
+
+  player.vx += joystick.dx * speed;
+  player.vy += joystick.dy * speed;
+
+  player.vx *= 0.9; // friction
+  player.vy *= 0.9;
+
+  player.x += player.vx;
+  player.y += player.vy;
+}
+
+function drawStickFigure(cx, cy) {
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "#000";
+
+  // head
+  ctx.beginPath();
+  ctx.arc(cx, cy - 25, 10, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // body
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 15);
+  ctx.lineTo(cx, cy + 15);
+  ctx.stroke();
+
+  // arms
+  ctx.beginPath();
+  ctx.moveTo(cx - 15, cy - 5);
+  ctx.lineTo(cx + 15, cy - 5);
+  ctx.stroke();
+
+  // legs
+  ctx.beginPath();
+  ctx.moveTo(cx, cy + 15);
+  ctx.lineTo(cx - 12, cy + 30);
+  ctx.moveTo(cx, cy + 15);
+  ctx.lineTo(cx + 12, cy + 30);
+  ctx.stroke();
+}
+
+function drawJoystick() {
+  ctx.globalAlpha = 0.2;
+  ctx.beginPath();
+  ctx.arc(joystick.baseX, joystick.baseY, joystick.radius, 0, Math.PI * 2);
+  ctx.fillStyle = "#000";
+  ctx.fill();
+
+  ctx.globalAlpha = 0.5;
+  ctx.beginPath();
+  ctx.arc(joystick.knobX, joystick.knobY, 25, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.globalAlpha = 1;
+}
+
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Draw stick in center (world moves)
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+
+  drawStickFigure(centerX, centerY);
+  drawJoystick();
+}
+
+function loop() {
+  update();
+  render();
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>
